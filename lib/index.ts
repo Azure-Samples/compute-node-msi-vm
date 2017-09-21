@@ -67,8 +67,6 @@ class VMSample {
       this.authorizationClient = new AuthorizationManagementClient(credentials, this.state.subscriptionId);
       let vm = await this.createVM();
       console.log(`VM creation successful: ${vm.name} is ready.`)
-      console.log(`Detailed info about the created VM is:`);
-      console.dir(vm, { depth: null, colors: true });
       return Promise.resolve(vm);
     } catch (err) {
       return Promise.reject(err);
@@ -117,9 +115,6 @@ class VMSample {
       location: this.location,
       addressSpace: {
         addressPrefixes: ['10.0.0.0/16']
-      },
-      dhcpOptions: {
-        dnsServers: ['10.1.1.1', '10.1.2.4']
       },
       subnets: [{ name: this.subnetName, addressPrefix: '10.0.0.0/24' }],
     };
@@ -212,16 +207,8 @@ class VMSample {
           version: vmImageVersionNumber
         };
 
-        let osDisk: ComputeModels.OSDisk = {
-          name: this.osDiskName,
-          caching: 'None',
-          createOption: 'fromImage',
-          vhd: { uri: `https://${this.storageAccountName}.blob.core.windows.net/nodejscontainer/osnodejslinux.vhd` }
-        };
-
         let storageProfile: ComputeModels.StorageProfile = {
-          imageReference: imageReference,
-          osDisk: osDisk
+          imageReference: imageReference
         };
 
         let networkProfile: ComputeModels.NetworkProfile = {

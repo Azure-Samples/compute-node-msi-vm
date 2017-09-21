@@ -202,7 +202,7 @@ class VMSample {
         };
 
         let hardwareProfile: ComputeModels.HardwareProfile = {
-          vmSize: 'Basic_A0'
+          vmSize: 'Standard_DS2_v2'
         };
 
         let imageReference: ComputeModels.ImageReference = {
@@ -216,7 +216,7 @@ class VMSample {
           name: this.osDiskName,
           caching: 'None',
           createOption: 'fromImage',
-          vhd: { uri: `https://${this.storageAccountName}blob.core.windows.net/nodejscontainer/osnodejslinux.vhd` }
+          vhd: { uri: `https://${this.storageAccountName}.blob.core.windows.net/nodejscontainer/osnodejslinux.vhd` }
         };
 
         let storageProfile: ComputeModels.StorageProfile = {

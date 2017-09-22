@@ -38,7 +38,7 @@ class Helpers {
 
   static validateParameters() {
     if (!process.argv[2] || !process.argv[3]) {
-      throw new Error('Please provide the resource group and the virtual machine name by executing the script as follows: "node cleanup.js <resourceGroupName> <vmName>".');
+      throw new Error('Please provide the resource group and the virtual machine name by executing the script as follows: "node dist/lib/cleanup.js <resourceGroupName> <vmName>".');
     }
   }
 }

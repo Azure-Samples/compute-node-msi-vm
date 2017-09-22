@@ -314,11 +314,12 @@ class Helpers {
   }
 }
 
-main();
-
-function main() {
+async function main(): Promise<void> {
   Helpers.validateEnvironmentVariables();
   let state = new State();
   let driver = new VMSample(state);
   driver.execute();
 }
+
+// Entry point.
+main();

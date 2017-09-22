@@ -10,6 +10,16 @@ import uuidv4 = require('uuid/v4');
 import ComputeManagementClient = require('azure-arm-compute');
 import { ResourceManagementClient, ResourceModels } from 'azure-arm-resource';
 
+class State {
+  public clientId: string = process.env['CLIENT_ID'];
+  public domain: string = process.env['DOMAIN'];
+  public secret: string = process.env['APPLICATION_SECRET'];
+  public subscriptionId: string = process.env['AZURE_SUBSCRIPTION_ID'];
+  public options: msRestAzure.AzureTokenCredentialsOptions;
+  public resourceGroupName: string = process.argv[2];
+  public vmName: string = process.argv[3];
+}
+
 class Helpers {
   static generateRandomId(prefix: string): string {
     return prefix + Math.floor(Math.random() * 10000);
@@ -33,36 +43,37 @@ class Helpers {
   }
 }
 
-var resourceGroupName = process.argv[2];
-var vmName = process.argv[3];
-var resourceClient, computeClient;
+class CleanupSample {
 
-function deleteVirtualMachine(callback) {
-  console.log(util.format('\nDeleting virtualMachine : %s. This operation takes time. Hence, please be patient :).', vmName));
-  return computeClient.virtualMachines.deleteMethod(resourceGroupName, vmName, callback);
+  private resourceClient: ResourceManagementClient;
+  private computeClient: ComputeManagementClient;
+
+  constructor(public state: State) {
+  }
+
+  async execute(): Promise<void> {
+    let credentials;
+    try {
+      credentials = await msRestAzure.loginWithServicePrincipalSecret(this.state.clientId, this.state.secret, this.state.domain);
+      this.resourceClient = new ResourceManagementClient(credentials, this.state.subscriptionId);
+      this.computeClient = new ComputeManagementClient(credentials, this.state.subscriptionId);
+      console.log(util.format('\nDeleting virtualMachine : %s. This operation takes time. Hence, please be patient :).', this.state.vmName));
+      let result = await this.computeClient.virtualMachines.beginDeleteMethod(this.state.resourceGroupName, this.state.vmName);
+      console.log('\nDeleting resource group: ' + this.state.resourceGroupName);
+      let finalResult = await this.resourceClient.resourceGroups.beginDeleteMethod(this.state.resourceGroupName);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
 }
 
-function deleteResourceGroup(callback) {
-  console.log('\nDeleting resource group: ' + resourceGroupName);
-  return resourceClient.resourceGroups.begindeleteMethod(resourceGroupName, callback);
+async function main(): Promise<void> {
+  Helpers.validateEnvironmentVariables();
+  Helpers.validateParameters();
+  let state = new State();
+  let driver = new CleanupSample(state);
+  return driver.execute();
 }
 
-
-Helpers.validateEnvironmentVariables();
-Helpers.validateParameters()
-
-//Entrypoint of the cleanup script
-msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain, function (err, credentials) {
-  if (err) return console.log(err);
-  resourceClient = new ResourceManagementClient(credentials, subscriptionId);
-  computeClient = new ComputeManagementClient(credentials, subscriptionId);
-  deleteVirtualMachine(function (err, result) {
-    if (err) return console.log('Error occured in deleting the virtual machine: ' + vmName + '\n' + util.inspect(err, { depth: null }));
-    console.log('Successfully deleted the virtual machine: ' + vmName);
-    console.log('\nDeleting the resource group can take few minutes, so please be patient :).');
-    deleteResourceGroup(function (err, result) {
-      if (err) return console.log('Error occured in deleting the resource group: ' + resourceGroupName + '\n' + util.inspect(err, { depth: null }));
-      console.log('Successfully deleted the resourcegroup: ' + resourceGroupName);
-    });
-  });
-});
+//Entrypoint
+main();

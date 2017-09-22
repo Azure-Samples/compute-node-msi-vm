@@ -253,11 +253,13 @@ class Helpers {
         }
     }
 }
-main();
 function main() {
-    Helpers.validateEnvironmentVariables();
-    let state = new State();
-    let driver = new VMSample(state);
-    driver.execute();
+    return __awaiter(this, void 0, void 0, function* () {
+        Helpers.validateEnvironmentVariables();
+        let state = new State();
+        let driver = new VMSample(state);
+        driver.execute();
+    });
 }
+main();
 //# sourceMappingURL=index.js.map

@@ -16,7 +16,8 @@
     "rootDir": "."
   },
   "include": [
-    "./lib/index.ts"
+    "./lib/index.ts",
+    "./lib/cleanup.ts"
   ],
   "exclude": [
     "./node_modules"

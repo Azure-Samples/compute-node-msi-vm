@@ -52,7 +52,7 @@ This sample explains how to create a VM with Managed Service Identity enabled.
 1. Run the sample.
 
     ```
-    node index.js
+    node dist/lib/index.js
     ```
 
 1. To clean up after index.js, run the cleanup script.

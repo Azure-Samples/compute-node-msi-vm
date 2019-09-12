@@ -1,7 +1,11 @@
 ---
-services: virtual-machines-msi-extension
-platforms: nodejs
-author: amarzavery
+page_type: sample
+languages:
+- typescript
+products:
+- azure
+description: "This sample explains how to create a VM with Managed Service Identity enabled."
+urlFragment: compute-node-msi-vm
 ---
 
 # Create a VM with MSI authentication enabled

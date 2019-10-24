@@ -4,6 +4,7 @@ languages:
 - typescript
 products:
 - azure
+- azure-virtual-machines
 description: "This sample explains how to create a VM with Managed Service Identity enabled."
 urlFragment: compute-node-msi-vm
 ---
@@ -17,7 +18,6 @@ This sample explains how to create a VM with Managed Service Identity enabled.
 - [Run this sample](#run)
 - [What does index.js do?](#sample)
 
-<a id="run"></a>
 ## Run this sample
 
 1. If you don't already have it, [get the latest LTS version of node.js](https://nodejs.org).
@@ -210,10 +210,8 @@ Please refer to [Azure SDK for Node](https://github.com/Azure/azure-sdk-for-node
 
 - [Azure Node.js Development Center] (https://azure.microsoft.com/en-us/develop/nodejs/)
 - [Azure Virtual Machines documentation](https://azure.microsoft.com/services/virtual-machines/)
-- [Learning Path for Virtual Machines](https://azure.microsoft.com/documentation/learning-paths/virtual-machines/)
+- [Learning Path for Virtual Machines](https://docs.microsoft.com/learn/modules/intro-to-azure-virtual-machines/)
 
 If you don't have a Microsoft Azure subscription you can get a FREE trial account [here](http://go.microsoft.com/fwlink/?LinkId=330212).
-
----
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.

@@ -11,8 +11,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const msRestAzure = require("ms-rest-azure");
 const process = require("process");
 const util = require("util");
-const ComputeManagementClient = require("azure-arm-compute");
-const azure_arm_resource_1 = require("azure-arm-resource");
+const ComputeManagementClient = require("@azure/arm-compute");
+const azure_arm_resource_1 = require("@azure/arm-resources");
 class State {
     constructor() {
         this.clientId = process.env['CLIENT_ID'];

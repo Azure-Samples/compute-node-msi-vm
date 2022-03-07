@@ -7,8 +7,8 @@ import * as process from 'process';
 import * as util from 'util';
 import uuidv4 = require('uuid/v4');
 
-import ComputeManagementClient = require('azure-arm-compute');
-import { ResourceManagementClient, ResourceModels } from 'azure-arm-resource';
+import ComputeManagementClient = require('@azure/arm-compute');
+import { ResourceManagementClient, ResourceModels } from '@azure/arm-resource';
 
 class State {
   public clientId: string = process.env['CLIENT_ID'];

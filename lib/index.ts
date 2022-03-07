@@ -5,15 +5,15 @@ import * as msRest from 'ms-rest';
 import * as msRestAzure from 'ms-rest-azure';
 
 import uuidv4 = require('uuid/v4');
-import ComputeManagementClient = require('azure-arm-compute');
-import StorageManagementClient = require('azure-arm-storage');
-import NetworkManagementClient = require('azure-arm-network');
-import AuthorizationManagementClient = require('azure-arm-authorization');
-import { ResourceManagementClient, ResourceModels } from 'azure-arm-resource';
-import * as StorageModels from '../node_modules/azure-arm-storage/lib/models';
-import * as ComputeModels from '../node_modules/azure-arm-compute/lib/models';
-import * as NetworkModels from '../node_modules/azure-arm-network/lib/models';
-import * as AuthorizationModels from '../node_modules/azure-arm-authorization/lib/models';
+import ComputeManagementClient = require('@azure/arm-compute');
+import StorageManagementClient = require('@azure/arm-storage');
+import NetworkManagementClient = require('@azure/arm-network');
+import AuthorizationManagementClient = require('@azure/arm-authorization');
+import { ResourceManagementClient, ResourceModels } from '@azure/arm-resource';
+import * as StorageModels from '../node_modules/@azure/arm-storage/lib/models';
+import * as ComputeModels from '../node_modules/@azure/arm-compute/lib/models';
+import * as NetworkModels from '../node_modules/@azure/arm-network/lib/models';
+import * as AuthorizationModels from '../node_modules/@azure/arm-authorization/lib/models';
 
 class State {
   public clientId: string = process.env['CLIENT_ID'];
@@ -169,11 +169,11 @@ class VMSample {
   }
 
   private findVMImage(): Promise<ComputeModels.VirtualMachineImageResource[]> {
-    return this.computeClient.virtualMachineImages.list(this.location,
-      this.ubuntuConfig.publisher,
-      this.ubuntuConfig.offer,
-      this.ubuntuConfig.sku,
-      { top: 1 });
+      const imagesList = new Array();
+      for await (const item of this.computeClient.virtualMachineImages.list(this.location,this.ubuntuConfig.publisher,this.ubuntuConfig.offer,this.ubuntuConfig.sku,{ top: 1 })){
+        imagesList.push(item);
+      }
+      return imagesList;
   }
 
   private getNICInfo(): Promise<NetworkModels.NetworkInterface> {
@@ -252,7 +252,10 @@ class VMSample {
     let roleName = "Contributor";
     let self = this;
 
-    let rolesTask = this.authorizationClient.roleDefinitions.list(rg.id, { filter: `roleName eq ${roleName}` });
+    let rolesTask = new Array();
+    for await (const item of this.authorizationClient.roleDefinitions.list(rg.id, { filter: `roleName eq ${roleName}` })){
+      rolesTask.push(item);
+    }
 
     let assignRoleTask = rolesTask.then(function assignRole(roles) {
       let contributorRole = roles[0];

@@ -10,11 +10,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const msRestAzure = require("ms-rest-azure");
 const uuidv4 = require("uuid/v4");
-const ComputeManagementClient = require("azure-arm-compute");
-const StorageManagementClient = require("azure-arm-storage");
-const NetworkManagementClient = require("azure-arm-network");
-const AuthorizationManagementClient = require("azure-arm-authorization");
-const azure_arm_resource_1 = require("azure-arm-resource");
+const ComputeManagementClient = require("@azure/arm-compute");
+const StorageManagementClient = require("@azure/arm-storage");
+const NetworkManagementClient = require("@azure/arm-network");
+const AuthorizationManagementClient = require("@azure/arm-authorization");
+const azure_arm_resource_1 = require("@azure/arm-resource");
 class State {
     constructor() {
         this.clientId = process.env['CLIENT_ID'];

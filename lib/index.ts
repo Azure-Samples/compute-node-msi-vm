@@ -229,7 +229,7 @@ class VMSample {
     let findVMTask = this.findVMImage();
 
     return Promise.all([nicTask, findVMTask])
-      .then(([nic, img]) => {
+      .then(async ([nic, img]) => {
 
         let nicId: string = nic.id;
         let vmImageVersionNumber: string = img[0].name;
@@ -280,7 +280,7 @@ class VMSample {
 
         console.log(`\n6.Creating Virtual Machine: ${this.vmName}`);
 
-        return this.computeClient.virtualMachines.beginCreateOrUpdateAndWait(
+        return await this.computeClient.virtualMachines.beginCreateOrUpdateAndWait(
           this.resourceGroupName,
           this.vmName,
           vmParameters);

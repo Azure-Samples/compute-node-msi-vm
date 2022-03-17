@@ -98,27 +98,26 @@ to assign a MSI ID to the VM.
 
 ```typescript
 // enable Managed Service Identity.
-let identity: ComputeModels.VirtualMachineIdentity = {
+let identity: VirtualMachineIdentity = {
   type: "SystemAssigned"
 };
 
-let vmParameters: ComputeModels.VirtualMachine = {
+let vmParameters: VirtualMachine = {
   location: this.location,
   osProfile: osProfile,
   hardwareProfile: hardwareProfile,
   storageProfile: storageProfile,
   networkProfile: networkProfile,
-  // Activate MSI on that VM
   identity: identity
 };
 
 console.log(`\n6.Creating Virtual Machine: ${this.vmName}`);
 
-return this.computeClient.virtualMachines.createOrUpdate(
+return await this.computeClient.virtualMachines.beginCreateOrUpdateAndWait(
   this.resourceGroupName,
   this.vmName,
-  vmParameters);
-});
+  vmParameters
+);
 ```
 
 <a id="role-assignment"></a>
@@ -160,9 +159,9 @@ This extension is just a simple localhost server on port 50342 that returns the 
 // To be able to get the token from inside the VM, there is a service on port 50342 (default). 
 // This service is installed by an extension.
 let extensionName = "msiextension";
-let extension: ComputeModels.VirtualMachineExtension = {
+let extension: VirtualMachineExtension = {
   publisher: "Microsoft.ManagedIdentity",
-  virtualMachineExtensionType: "ManagedIdentityExtensionForLinux",
+  typePropertiesType: "ManagedIdentityExtensionForLinux",
   typeHandlerVersion: "1.0",
   autoUpgradeMinorVersion: true,
   settings: {
@@ -171,7 +170,12 @@ let extension: ComputeModels.VirtualMachineExtension = {
   location: self.location
 };
 
-return self.computeClient.virtualMachineExtensions.createOrUpdate(self.resourceGroupName, self.vmName, extensionName, extension);
+return await self.computeClient.virtualMachineExtensions.beginCreateOrUpdateAndWait(
+    self.resourceGroupName,
+    self.vmName,
+    extensionName,
+    extension
+);
 ```
 
 <a id="usage"></a>

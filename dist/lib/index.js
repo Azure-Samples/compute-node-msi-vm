@@ -1,20 +1,21 @@
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const msRestAzure = require("ms-rest-azure");
-const uuidv4 = require("uuid/v4");
-const ComputeManagementClient = require("azure-arm-compute");
-const StorageManagementClient = require("azure-arm-storage");
-const NetworkManagementClient = require("azure-arm-network");
-const AuthorizationManagementClient = require("azure-arm-authorization");
-const azure_arm_resource_1 = require("azure-arm-resource");
+const uuid_1 = require("uuid");
+const arm_compute_1 = require("@azure/arm-compute");
+const arm_storage_1 = require("@azure/arm-storage");
+const arm_network_1 = require("@azure/arm-network");
+const arm_authorization_1 = require("@azure/arm-authorization");
+const arm_resources_1 = require("@azure/arm-resources");
+const identity_1 = require("@azure/identity");
 class State {
     constructor() {
         this.clientId = process.env['CLIENT_ID'];
@@ -50,12 +51,12 @@ class VMSample {
         return __awaiter(this, void 0, void 0, function* () {
             let credentials;
             try {
-                credentials = yield msRestAzure.loginWithServicePrincipalSecret(this.state.clientId, this.state.secret, this.state.domain, this.state.options);
-                this.resourceClient = new azure_arm_resource_1.ResourceManagementClient(credentials, this.state.subscriptionId);
-                this.computeClient = new ComputeManagementClient(credentials, this.state.subscriptionId);
-                this.storageClient = new StorageManagementClient(credentials, this.state.subscriptionId);
-                this.networkClient = new NetworkManagementClient(credentials, this.state.subscriptionId);
-                this.authorizationClient = new AuthorizationManagementClient(credentials, this.state.subscriptionId);
+                credentials = new identity_1.ClientSecretCredential(this.state.domain, this.state.clientId, this.state.secret);
+                this.resourceClient = new arm_resources_1.ResourceManagementClient(credentials, this.state.subscriptionId);
+                this.computeClient = new arm_compute_1.ComputeManagementClient(credentials, this.state.subscriptionId);
+                this.storageClient = new arm_storage_1.StorageManagementClient(credentials, this.state.subscriptionId);
+                this.networkClient = new arm_network_1.NetworkManagementClient(credentials, this.state.subscriptionId);
+                this.authorizationClient = new arm_authorization_1.AuthorizationManagementClient(credentials, this.state.subscriptionId);
                 let vm = yield this.createVM();
                 console.log(`VM creation successful: ${vm.name} is ready.`);
                 return Promise.resolve(vm);
@@ -66,15 +67,17 @@ class VMSample {
         });
     }
     createVM() {
-        return this.createResourceGroup()
-            .then((rg) => {
-            let storageTask = this.createStorageAccount();
-            let subnetTask = this.createVnet();
-            let nicTask = subnetTask.then(() => this.createNIC());
-            let vmTask = Promise.all([storageTask, subnetTask, nicTask])
-                .then(() => this.createVirtualMachine());
-            vmTask.then((vm) => this.FinalizeMSISetup(rg, vm));
-            return vmTask;
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.createResourceGroup()
+                .then((rg) => __awaiter(this, void 0, void 0, function* () {
+                let storageTask = yield this.createStorageAccount();
+                let subnetTask = this.createVnet();
+                let nicTask = subnetTask.then(() => __awaiter(this, void 0, void 0, function* () { return yield this.createNIC(); }));
+                let vmTask = Promise.all([storageTask, subnetTask, nicTask])
+                    .then(() => __awaiter(this, void 0, void 0, function* () { return yield this.createVirtualMachine(); }));
+                vmTask.then((vm) => this.FinalizeMSISetup(rg, vm));
+                return vmTask;
+            }));
         });
     }
     createResourceGroup() {
@@ -85,61 +88,74 @@ class VMSample {
         return this.resourceClient.resourceGroups.createOrUpdate(this.resourceGroupName, groupParameters);
     }
     createStorageAccount() {
-        let storageAcctParams = {
-            location: this.location,
-            sku: {
-                name: 'Standard_LRS',
-            },
-            kind: 'storage',
-        };
-        console.log(`\n2.Creating storage account: ${this.storageAccountName}`);
-        return this.storageClient.storageAccounts.create(this.resourceGroupName, this.storageAccountName, storageAcctParams);
+        return __awaiter(this, void 0, void 0, function* () {
+            let storageAcctParams = {
+                location: this.location,
+                sku: {
+                    name: 'Standard_LRS',
+                },
+                kind: 'storage',
+            };
+            console.log(`\n2.Creating storage account: ${this.storageAccountName}`);
+            return yield this.storageClient.storageAccounts.beginCreateAndWait(this.resourceGroupName, this.storageAccountName, storageAcctParams);
+        });
     }
     createVnet() {
-        let vnetParams = {
-            location: this.location,
-            addressSpace: {
-                addressPrefixes: ['10.0.0.0/16']
-            },
-            subnets: [{ name: this.subnetName, addressPrefix: '10.0.0.0/24' }],
-        };
-        console.log(`\n3.Creating vnet: ${this.vnetName}`);
-        return this.networkClient.virtualNetworks.createOrUpdate(this.resourceGroupName, this.vnetName, vnetParams);
+        return __awaiter(this, void 0, void 0, function* () {
+            let vnetParams = {
+                location: this.location,
+                addressSpace: {
+                    addressPrefixes: ['10.0.0.0/16']
+                },
+                subnets: [{ name: this.subnetName, addressPrefix: '10.0.0.0/24' }],
+            };
+            console.log(`\n3.Creating vnet: ${this.vnetName}`);
+            yield this.networkClient.virtualNetworks.beginCreateOrUpdateAndWait(this.resourceGroupName, this.vnetName, vnetParams);
+            return yield this.networkClient.virtualNetworks.get(this.resourceGroupName, this.vnetName);
+        });
     }
     getSubnetInfo() {
-        return this.networkClient.subnets.get(this.resourceGroupName, this.vnetName, this.subnetName);
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.networkClient.subnets.get(this.resourceGroupName, this.vnetName, this.subnetName);
+        });
     }
     createPublicIP() {
-        let publicIPParameters = {
-            location: this.location,
-            publicIPAllocationMethod: 'Dynamic',
-            dnsSettings: {
-                domainNameLabel: this.domainNameLabel
-            }
-        };
-        console.log(`\n4.Creating public IP: ${this.publicIPName}`);
-        return this.networkClient.publicIPAddresses.createOrUpdate(this.resourceGroupName, this.publicIPName, publicIPParameters);
+        return __awaiter(this, void 0, void 0, function* () {
+            let publicIPParameters = {
+                location: this.location,
+                publicIPAllocationMethod: 'Dynamic',
+                dnsSettings: {
+                    domainNameLabel: this.domainNameLabel
+                }
+            };
+            console.log(`\n4.Creating public IP: ${this.publicIPName}`);
+            yield this.networkClient.publicIPAddresses.beginCreateOrUpdateAndWait(this.resourceGroupName, this.publicIPName, publicIPParameters);
+            return yield this.networkClient.publicIPAddresses.get(this.resourceGroupName, this.publicIPName);
+        });
     }
     createNIC() {
-        let subnetTask = this.getSubnetInfo();
-        let ipTask = this.createPublicIP();
-        return Promise.all([subnetTask, ipTask])
-            .then(([s, ip]) => {
-            console.log(`\n5.Creating Network Interface: ${this.networkInterfaceName}`);
-            let subnet = s;
-            let publicIp = ip;
-            let nicParameters = {
-                location: this.location,
-                ipConfigurations: [
-                    {
-                        name: this.ipConfigName,
-                        privateIPAllocationMethod: 'Dynamic',
-                        subnet: subnet,
-                        publicIPAddress: publicIp
-                    }
-                ]
-            };
-            return this.networkClient.networkInterfaces.createOrUpdate(this.resourceGroupName, this.networkInterfaceName, nicParameters);
+        return __awaiter(this, void 0, void 0, function* () {
+            let subnetTask = this.getSubnetInfo();
+            let ipTask = this.createPublicIP();
+            return Promise.all([subnetTask, ipTask])
+                .then(([s, ip]) => __awaiter(this, void 0, void 0, function* () {
+                console.log(`\n5.Creating Network Interface: ${this.networkInterfaceName}`);
+                let subnet = s;
+                let publicIp = ip;
+                let nicParameters = {
+                    location: this.location,
+                    ipConfigurations: [
+                        {
+                            name: this.ipConfigName,
+                            privateIPAllocationMethod: 'Dynamic',
+                            subnet: subnet,
+                            publicIPAddress: publicIp
+                        }
+                    ]
+                };
+                yield this.networkClient.networkInterfaces.beginCreateOrUpdateAndWait(this.resourceGroupName, this.networkInterfaceName, nicParameters);
+                return this.networkClient.networkInterfaces.get(this.resourceGroupName, this.networkInterfaceName);
+            }));
         });
     }
     findVMImage() {
@@ -192,46 +208,50 @@ class VMSample {
                 identity: identity
             };
             console.log(`\n6.Creating Virtual Machine: ${this.vmName}`);
-            return this.computeClient.virtualMachines.createOrUpdate(this.resourceGroupName, this.vmName, vmParameters);
+            return this.computeClient.virtualMachines.beginCreateOrUpdateAndWait(this.resourceGroupName, this.vmName, vmParameters);
         });
     }
     FinalizeMSISetup(rg, vm) {
-        console.log(`\n7. Finalizing MSI set up on the Virtual Machine: ${this.vmName}`);
-        let msiPrincipalId = vm.identity.principalId;
-        let roleName = "Contributor";
-        let self = this;
-        let rolesTask = this.authorizationClient.roleDefinitions.list(rg.id, { filter: `roleName eq ${roleName}` });
-        let assignRoleTask = rolesTask.then(function assignRole(roles) {
-            let contributorRole = roles[0];
-            let roleAssignmentParams = {
-                principalId: msiPrincipalId,
-                roleDefinitionId: contributorRole.id
-            };
-            return self.authorizationClient.roleAssignments.create(rg.id, uuidv4(), { properties: roleAssignmentParams });
-        });
-        let installMSITask = assignRoleTask.then(function installMSIExtension(role) {
-            let extensionName = "msiextension";
-            let extension = {
-                publisher: "Microsoft.ManagedIdentity",
-                virtualMachineExtensionType: "ManagedIdentityExtensionForLinux",
-                typeHandlerVersion: "1.0",
-                autoUpgradeMinorVersion: true,
-                settings: {
-                    port: "50342",
-                },
-                location: self.location
-            };
-            return self.computeClient.virtualMachineExtensions.createOrUpdate(self.resourceGroupName, self.vmName, extensionName, extension);
-        });
-        installMSITask.then(function displayConnInfo() {
-            console.log('');
-            let publicIPTask = self.networkClient.publicIPAddresses.get(self.resourceGroupName, self.publicIPName);
-            publicIPTask.then(function _(publicIp) {
-                console.log("you can connect to the VM using:");
-                console.log(`ssh ${self.adminUserName}@${publicIp.ipAddress}. The password is ${self.adminPassword}`);
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`\n7. Finalizing MSI set up on the Virtual Machine: ${this.vmName}`);
+            let msiPrincipalId = vm.identity.principalId;
+            let roleName = "Contributor";
+            let self = this;
+            let rolesTask = this.authorizationClient.roleDefinitions.list(rg.id, { filter: `roleName eq ${roleName}` });
+            let assignRoleTask = rolesTask.then(function assignRole(roles) {
+                let contributorRole = roles[0];
+                let roleAssignmentParams = {
+                    principalId: msiPrincipalId,
+                    roleDefinitionId: contributorRole.id
+                };
+                return self.authorizationClient.roleAssignments.create(rg.id, (0, uuid_1.v4)(), roleAssignmentParams);
             });
+            let installMSITask = assignRoleTask.then(function installMSIExtension(role) {
+                return __awaiter(this, void 0, void 0, function* () {
+                    let extensionName = "msiextension";
+                    let extension = {
+                        publisher: "Microsoft.ManagedIdentity",
+                        typePropertiesType: "ManagedIdentityExtensionForLinux",
+                        typeHandlerVersion: "1.0",
+                        autoUpgradeMinorVersion: true,
+                        settings: {
+                            port: "50342",
+                        },
+                        location: self.location
+                    };
+                    return yield self.computeClient.virtualMachineExtensions.beginCreateOrUpdateAndWait(self.resourceGroupName, self.vmName, extensionName, extension);
+                });
+            });
+            installMSITask.then(function displayConnInfo() {
+                console.log('');
+                let publicIPTask = self.networkClient.publicIPAddresses.get(self.resourceGroupName, self.publicIPName);
+                publicIPTask.then(function _(publicIp) {
+                    console.log("you can connect to the VM using:");
+                    console.log(`ssh ${self.adminUserName}@${publicIp.ipAddress}. The password is ${self.adminPassword}`);
+                });
+            });
+            return installMSITask;
         });
-        return installMSITask;
     }
 }
 class Helpers {
@@ -258,7 +278,7 @@ function main() {
         Helpers.validateEnvironmentVariables();
         let state = new State();
         let driver = new VMSample(state);
-        driver.execute();
+        yield driver.execute();
     });
 }
 main();

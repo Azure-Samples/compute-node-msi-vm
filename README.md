@@ -73,7 +73,7 @@ it installs the VM extension necessary to get this token from inside the VM.
 It starts by setting up several clients using your subscription and credentials.
 
 ```javascript
-msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain, function (err, credentials))
+const credentials = new ClientSecretCredential(this.state.domain, this.state.clientId, this.state.secret);
 ```
 
 ### Preliminary operations

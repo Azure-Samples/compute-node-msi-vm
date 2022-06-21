@@ -1,18 +1,19 @@
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const msRestAzure = require("ms-rest-azure");
 const process = require("process");
 const util = require("util");
-const ComputeManagementClient = require("azure-arm-compute");
-const azure_arm_resource_1 = require("azure-arm-resource");
+const identity_1 = require("@azure/identity");
+const arm_compute_1 = require("@azure/arm-compute");
+const arm_resources_1 = require("@azure/arm-resources");
 class State {
     constructor() {
         this.clientId = process.env['CLIENT_ID'];
@@ -55,13 +56,13 @@ class CleanupSample {
         return __awaiter(this, void 0, void 0, function* () {
             let credentials;
             try {
-                credentials = yield msRestAzure.loginWithServicePrincipalSecret(this.state.clientId, this.state.secret, this.state.domain);
-                this.resourceClient = new azure_arm_resource_1.ResourceManagementClient(credentials, this.state.subscriptionId);
-                this.computeClient = new ComputeManagementClient(credentials, this.state.subscriptionId);
+                credentials = new identity_1.ClientSecretCredential(this.state.domain, this.state.clientId, this.state.secret);
+                this.resourceClient = new arm_resources_1.ResourceManagementClient(credentials, this.state.subscriptionId);
+                this.computeClient = new arm_compute_1.ComputeManagementClient(credentials, this.state.subscriptionId);
                 console.log(util.format('\nDeleting virtualMachine : %s. This operation takes time. Hence, please be patient :).', this.state.vmName));
-                let result = yield this.computeClient.virtualMachines.beginDeleteMethod(this.state.resourceGroupName, this.state.vmName);
+                let result = yield this.computeClient.virtualMachines.beginDeleteAndWait(this.state.resourceGroupName, this.state.vmName);
                 console.log('\nDeleting resource group: ' + this.state.resourceGroupName);
-                let finalResult = yield this.resourceClient.resourceGroups.beginDeleteMethod(this.state.resourceGroupName);
+                let finalResult = yield this.resourceClient.resourceGroups.beginDeleteAndWait(this.state.resourceGroupName);
             }
             catch (err) {
                 return Promise.reject(err);

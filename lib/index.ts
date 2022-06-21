@@ -1,26 +1,39 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
-
-import * as msRest from 'ms-rest';
-import * as msRestAzure from 'ms-rest-azure';
-
-import uuidv4 = require('uuid/v4');
-import ComputeManagementClient = require('azure-arm-compute');
-import StorageManagementClient = require('azure-arm-storage');
-import NetworkManagementClient = require('azure-arm-network');
-import AuthorizationManagementClient = require('azure-arm-authorization');
-import { ResourceManagementClient, ResourceModels } from 'azure-arm-resource';
-import * as StorageModels from '../node_modules/azure-arm-storage/lib/models';
-import * as ComputeModels from '../node_modules/azure-arm-compute/lib/models';
-import * as NetworkModels from '../node_modules/azure-arm-network/lib/models';
-import * as AuthorizationModels from '../node_modules/azure-arm-authorization/lib/models';
+import { v4 as uuidv4 } from 'uuid';
+import {
+    ComputeManagementClient,
+    VirtualMachine,
+    VirtualMachineImageResource,
+    OSProfile,
+    HardwareProfile,
+    ImageReference,
+    StorageProfile,
+    NetworkProfile,
+    VirtualMachineIdentity,
+    VirtualMachineExtension,
+} from '@azure/arm-compute';
+import {
+    StorageManagementClient,
+    StorageAccount,
+    StorageAccountCreateParameters,
+} from '@azure/arm-storage';
+import {
+    NetworkManagementClient,
+    VirtualNetwork,
+    PublicIPAddress,
+    NetworkInterface,
+    Subnet,
+} from '@azure/arm-network';
+import { AuthorizationManagementClient } from '@azure/arm-authorization';
+import { ResourceManagementClient, ResourceGroup } from '@azure/arm-resources';
+import { ClientSecretCredential } from '@azure/identity';
 
 class State {
   public clientId: string = process.env['CLIENT_ID'];
   public domain: string = process.env['DOMAIN'];
   public secret: string = process.env['APPLICATION_SECRET'];
   public subscriptionId: string = process.env['AZURE_SUBSCRIPTION_ID'];
-  public options: msRestAzure.AzureTokenCredentialsOptions;
 }
 
 class VMSample {
@@ -56,10 +69,10 @@ class VMSample {
   constructor(public state: State) {
   }
 
-  async execute(): Promise<ComputeModels.VirtualMachine> {
+  async execute(): Promise<VirtualMachine> {
     let credentials;
     try {
-      credentials = await msRestAzure.loginWithServicePrincipalSecret(this.state.clientId, this.state.secret, this.state.domain, this.state.options);
+      credentials = new ClientSecretCredential(this.state.domain, this.state.clientId, this.state.secret);
       this.resourceClient = new ResourceManagementClient(credentials, this.state.subscriptionId);
       this.computeClient = new ComputeManagementClient(credentials, this.state.subscriptionId);
       this.storageClient = new StorageManagementClient(credentials, this.state.subscriptionId);
@@ -73,21 +86,21 @@ class VMSample {
     }
   }
 
-  private createVM(): Promise<ComputeModels.VirtualMachine> {
-    return this.createResourceGroup()
-      .then((rg) => {
-        let storageTask = this.createStorageAccount();
+  private async createVM(): Promise<VirtualMachine> {
+    return await this.createResourceGroup()
+      .then(async (rg) => {
+        let storageTask = await this.createStorageAccount();
         let subnetTask = this.createVnet();
-        let nicTask = subnetTask.then(() => this.createNIC());
+        let nicTask = subnetTask.then(async () => await this.createNIC());
         let vmTask = Promise.all([storageTask, subnetTask, nicTask])
-          .then(() => this.createVirtualMachine());
+          .then(async () => await this.createVirtualMachine());
         vmTask.then((vm) => this.FinalizeMSISetup(rg, vm));
         return vmTask;
       });
   }
 
-  private createResourceGroup(): Promise<ResourceModels.ResourceGroup> {
-    let groupParameters: ResourceModels.ResourceGroup = {
+  private createResourceGroup(): Promise<ResourceGroup> {
+    let groupParameters: ResourceGroup = {
       location: this.location
     };
 
@@ -96,8 +109,8 @@ class VMSample {
     return this.resourceClient.resourceGroups.createOrUpdate(this.resourceGroupName, groupParameters);
   }
 
-  private createStorageAccount(): Promise<StorageModels.StorageAccount> {
-    let storageAcctParams: StorageModels.StorageAccountCreateParameters = {
+  private async createStorageAccount(): Promise<StorageAccount> {
+    let storageAcctParams: StorageAccountCreateParameters = {
       location: this.location,
       sku: {
         name: 'Standard_LRS',
@@ -106,12 +119,16 @@ class VMSample {
     };
 
     console.log(`\n2.Creating storage account: ${this.storageAccountName}`);
-
-    return this.storageClient.storageAccounts.create(this.resourceGroupName, this.storageAccountName, storageAcctParams);
+    return await this.storageClient.storageAccounts.beginCreateAndWait(
+        this.resourceGroupName,
+        this.storageAccountName,
+        storageAcctParams
+    );
+    
   }
 
-  private createVnet(): Promise<NetworkModels.VirtualNetwork> {
-    let vnetParams: NetworkModels.VirtualNetwork = {
+  private async createVnet(): Promise<VirtualNetwork> {
+    let vnetParams: VirtualNetwork = {
       location: this.location,
       addressSpace: {
         addressPrefixes: ['10.0.0.0/16']
@@ -121,15 +138,27 @@ class VMSample {
 
     console.log(`\n3.Creating vnet: ${this.vnetName}`);
 
-    return this.networkClient.virtualNetworks.createOrUpdate(this.resourceGroupName, this.vnetName, vnetParams);
+    await this.networkClient.virtualNetworks.beginCreateOrUpdateAndWait(
+        this.resourceGroupName,
+        this.vnetName,
+        vnetParams
+    );
+    return await this.networkClient.virtualNetworks.get(
+        this.resourceGroupName,
+        this.vnetName
+    );
   }
 
-  private getSubnetInfo(): Promise<NetworkModels.Subnet> {
-    return this.networkClient.subnets.get(this.resourceGroupName, this.vnetName, this.subnetName);
+  private async getSubnetInfo(): Promise<Subnet> {
+    return await this.networkClient.subnets.get(
+        this.resourceGroupName,
+        this.vnetName,
+        this.subnetName
+    );
   }
 
-  private createPublicIP(): Promise<NetworkModels.PublicIPAddress> {
-    let publicIPParameters: NetworkModels.PublicIPAddress = {
+  private async createPublicIP(): Promise<PublicIPAddress> {
+    let publicIPParameters: PublicIPAddress = {
       location: this.location,
       publicIPAllocationMethod: 'Dynamic',
       dnsSettings: {
@@ -139,19 +168,27 @@ class VMSample {
 
     console.log(`\n4.Creating public IP: ${this.publicIPName}`);
 
-    return this.networkClient.publicIPAddresses.createOrUpdate(this.resourceGroupName, this.publicIPName, publicIPParameters);
+    await this.networkClient.publicIPAddresses.beginCreateOrUpdateAndWait(
+        this.resourceGroupName,
+        this.publicIPName,
+        publicIPParameters
+    );
+    return await this.networkClient.publicIPAddresses.get(
+        this.resourceGroupName,
+        this.publicIPName
+    );
   }
 
-  private createNIC(): Promise<NetworkModels.NetworkInterface> {
+  private async createNIC(): Promise<NetworkInterface> {
     let subnetTask = this.getSubnetInfo();
     let ipTask = this.createPublicIP();
 
     return Promise.all([subnetTask, ipTask])
-      .then(([s, ip]) => {
+      .then(async ([s, ip]) => {
         console.log(`\n5.Creating Network Interface: ${this.networkInterfaceName}`);
 
-        let subnet: NetworkModels.Subnet = s;
-        let publicIp: NetworkModels.PublicIPAddress = ip;
+        let subnet: Subnet = s;
+        let publicIp: PublicIPAddress = ip;
         let nicParameters = {
           location: this.location,
           ipConfigurations: [
@@ -163,12 +200,19 @@ class VMSample {
             }
           ]
         };
-
-        return this.networkClient.networkInterfaces.createOrUpdate(this.resourceGroupName, this.networkInterfaceName, nicParameters);
+        await this.networkClient.networkInterfaces.beginCreateOrUpdateAndWait(
+            this.resourceGroupName,
+            this.networkInterfaceName,
+            nicParameters
+        );
+        return this.networkClient.networkInterfaces.get(
+            this.resourceGroupName,
+            this.networkInterfaceName
+        );
       });
   }
 
-  private findVMImage(): Promise<ComputeModels.VirtualMachineImageResource[]> {
+  private findVMImage(): Promise<VirtualMachineImageResource[]> {
     return this.computeClient.virtualMachineImages.list(this.location,
       this.ubuntuConfig.publisher,
       this.ubuntuConfig.offer,
@@ -176,42 +220,42 @@ class VMSample {
       { top: 1 });
   }
 
-  private getNICInfo(): Promise<NetworkModels.NetworkInterface> {
+  private getNICInfo(): Promise<NetworkInterface> {
     return this.networkClient.networkInterfaces.get(this.resourceGroupName, this.networkInterfaceName);
   }
 
-  private createVirtualMachine(): Promise<ComputeModels.VirtualMachine> {
+  private createVirtualMachine(): Promise<VirtualMachine> {
     let nicTask = this.getNICInfo();
     let findVMTask = this.findVMImage();
 
     return Promise.all([nicTask, findVMTask])
-      .then(([nic, img]) => {
+      .then(async ([nic, img]) => {
 
         let nicId: string = nic.id;
         let vmImageVersionNumber: string = img[0].name;
 
-        let osProfile: ComputeModels.OSProfile = {
+        let osProfile: OSProfile = {
           computerName: this.vmName,
           adminUsername: this.adminUserName,
           adminPassword: this.adminPassword
         };
 
-        let hardwareProfile: ComputeModels.HardwareProfile = {
+        let hardwareProfile: HardwareProfile = {
           vmSize: 'Standard_DS2_v2'
         };
 
-        let imageReference: ComputeModels.ImageReference = {
+        let imageReference: ImageReference = {
           publisher: this.ubuntuConfig.publisher,
           offer: this.ubuntuConfig.offer,
           sku: this.ubuntuConfig.sku,
           version: vmImageVersionNumber
         };
 
-        let storageProfile: ComputeModels.StorageProfile = {
+        let storageProfile: StorageProfile = {
           imageReference: imageReference
         };
 
-        let networkProfile: ComputeModels.NetworkProfile = {
+        let networkProfile: NetworkProfile = {
           networkInterfaces: [
             {
               id: nicId,
@@ -221,11 +265,11 @@ class VMSample {
         };
 
         // enable Managed Service Identity.
-        let identity: ComputeModels.VirtualMachineIdentity = {
+        let identity: VirtualMachineIdentity = {
           type: "SystemAssigned"
         };
 
-        let vmParameters: ComputeModels.VirtualMachine = {
+        let vmParameters: VirtualMachine = {
           location: this.location,
           osProfile: osProfile,
           hardwareProfile: hardwareProfile,
@@ -236,14 +280,14 @@ class VMSample {
 
         console.log(`\n6.Creating Virtual Machine: ${this.vmName}`);
 
-        return this.computeClient.virtualMachines.createOrUpdate(
+        return await this.computeClient.virtualMachines.beginCreateOrUpdateAndWait(
           this.resourceGroupName,
           this.vmName,
           vmParameters);
       });
   }
 
-  private FinalizeMSISetup(rg: ResourceModels.ResourceGroup, vm: ComputeModels.VirtualMachine): Promise<ComputeModels.VirtualMachineExtension> {
+  private async FinalizeMSISetup(rg: ResourceGroup, vm: VirtualMachine): Promise<VirtualMachineExtension> {
     console.log(`\n7. Finalizing MSI set up on the Virtual Machine: ${this.vmName}`);
 
     // By default, the MSI account has no permissions, the next part is assignment of permissions to the account
@@ -256,21 +300,21 @@ class VMSample {
 
     let assignRoleTask = rolesTask.then(function assignRole(roles) {
       let contributorRole = roles[0];
-      let roleAssignmentParams: AuthorizationModels.RoleAssignmentProperties = {
+      let roleAssignmentParams = {
         principalId: msiPrincipalId,
         roleDefinitionId: contributorRole.id
       };
 
-      return self.authorizationClient.roleAssignments.create(rg.id, uuidv4(), { properties: roleAssignmentParams });
+      return self.authorizationClient.roleAssignments.create(rg.id, uuidv4(), roleAssignmentParams);
     });
 
-    let installMSITask = assignRoleTask.then(function installMSIExtension(role) {
+    let installMSITask = assignRoleTask.then(async function installMSIExtension(role) {
       // To be able to get the token from inside the VM, there is a service on port 50342 (default). 
       // This service is installed by an extension.
       let extensionName = "msiextension";
-      let extension: ComputeModels.VirtualMachineExtension = {
+      let extension: VirtualMachineExtension = {
         publisher: "Microsoft.ManagedIdentity",
-        virtualMachineExtensionType: "ManagedIdentityExtensionForLinux",
+        typePropertiesType: "ManagedIdentityExtensionForLinux",
         typeHandlerVersion: "1.0",
         autoUpgradeMinorVersion: true,
         settings: {
@@ -279,7 +323,12 @@ class VMSample {
         location: self.location
       };
 
-      return self.computeClient.virtualMachineExtensions.createOrUpdate(self.resourceGroupName, self.vmName, extensionName, extension);
+      return await self.computeClient.virtualMachineExtensions.beginCreateOrUpdateAndWait(
+          self.resourceGroupName,
+          self.vmName,
+          extensionName,
+          extension
+      );
     });
 
     installMSITask.then(function displayConnInfo() {
@@ -318,7 +367,7 @@ async function main(): Promise<void> {
   Helpers.validateEnvironmentVariables();
   let state = new State();
   let driver = new VMSample(state);
-  driver.execute();
+  await driver.execute();
 }
 
 // Entry point.

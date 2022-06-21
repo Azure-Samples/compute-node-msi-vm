@@ -4,20 +4,19 @@
   "version": "0.1.0",
   "main": "./dist/lib/index.js",
   "dependencies": {
-    "ms-rest": "^2.2.2",
-    "ms-rest-azure": "^2.3.1",
-    "azure-arm-compute": "^3.0.0-preview",
-    "azure-arm-resource": "^2.0.0-preview",
-    "azure-arm-storage": "^2.1.0-preview",
-    "azure-arm-network": "^3.0.0",
-    "azure-arm-authorization": "^4.0.0-preview",
+    "@azure/arm-authorization": "^8.4.1",
+    "@azure/arm-compute": "^17.3.0",
+    "@azure/arm-network": "^26.0.0",
+    "@azure/arm-resources": "^5.0.0",
+    "@azure/arm-storage": "^17.1.0",
+    "@azure/identity": "^2.0.4",
+    "@types/node": "^17.0.21",
     "uuid": "^3.1.0"
   },
   "devDependencies": {
-    "mocha": "*",
+    "@types/uuid": "^8.3.4",
     "eslint": "*",
-    "@types/node": "*",
-    "@types/mocha": "*"
+    "mocha": "*"
   },
   "scripts": {
     "tsc": "tsc -p tsconfig.json"

@@ -1,21 +1,18 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
-import * as msRest from 'ms-rest';
-import * as msRestAzure from 'ms-rest-azure';
 import * as process from 'process';
 import * as util from 'util';
-import uuidv4 = require('uuid/v4');
 
-import ComputeManagementClient = require('azure-arm-compute');
-import { ResourceManagementClient, ResourceModels } from 'azure-arm-resource';
+import { ClientSecretCredential } from '@azure/identity';
+import { ComputeManagementClient } from '@azure/arm-compute';
+import { ResourceManagementClient } from '@azure/arm-resources';
 
 class State {
   public clientId: string = process.env['CLIENT_ID'];
   public domain: string = process.env['DOMAIN'];
   public secret: string = process.env['APPLICATION_SECRET'];
   public subscriptionId: string = process.env['AZURE_SUBSCRIPTION_ID'];
-  public options: msRestAzure.AzureTokenCredentialsOptions;
   public resourceGroupName: string = process.argv[2];
   public vmName: string = process.argv[3];
 }
@@ -54,13 +51,17 @@ class CleanupSample {
   async execute(): Promise<void> {
     let credentials;
     try {
-      credentials = await msRestAzure.loginWithServicePrincipalSecret(this.state.clientId, this.state.secret, this.state.domain);
+      credentials = new ClientSecretCredential(
+          this.state.domain,
+          this.state.clientId,
+          this.state.secret
+      );
       this.resourceClient = new ResourceManagementClient(credentials, this.state.subscriptionId);
       this.computeClient = new ComputeManagementClient(credentials, this.state.subscriptionId);
       console.log(util.format('\nDeleting virtualMachine : %s. This operation takes time. Hence, please be patient :).', this.state.vmName));
-      let result = await this.computeClient.virtualMachines.beginDeleteMethod(this.state.resourceGroupName, this.state.vmName);
+      let result = await this.computeClient.virtualMachines.beginDeleteAndWait(this.state.resourceGroupName, this.state.vmName);
       console.log('\nDeleting resource group: ' + this.state.resourceGroupName);
-      let finalResult = await this.resourceClient.resourceGroups.beginDeleteMethod(this.state.resourceGroupName);
+      let finalResult = await this.resourceClient.resourceGroups.beginDeleteAndWait(this.state.resourceGroupName);
     } catch (err) {
       return Promise.reject(err);
     }
